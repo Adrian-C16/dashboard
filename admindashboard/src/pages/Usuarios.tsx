@@ -3,7 +3,7 @@ import { Typography, Button, Box } from "@mui/material";
 import UserTable from "../components/UserTable";
 import type { User } from "../components/UserTable";
 import UserForm from "../components/UserForm";
-
+import * as userService from "../services/userService";
 
 const Usuarios: React.FC = () => {
     const [usuarios, setUsuarios] = useState<User[]>([]);
@@ -12,35 +12,28 @@ const Usuarios: React.FC = () => {
     const [userToEdit, setUserToEdit] = useState<User | null>(null);
 
     useEffect (() => {
-        //simulación llamada api
-        setTimeout(() => {
-            setUsuarios([
-                { id: 1, nombre: "Juan Pérez", email: "juan.perez@email.com", rol: "Administrador" },
-        { id: 2, nombre: "Ana Gómez", email: "ana.gomez@email.com", rol: "Editor" },
-        { id: 3, nombre: "Carlos Ruiz", email: "carlos.ruiz@email.com", rol: "Usuario" }
-            ]);    
-        }, 1000);
+        userService.getUsuarios().then(setUsuarios);
     }, []);
 
-    const handleAddUser = (user: Omit<User, "id">) => {
-        setUsuarios((prev) => [
-            ...prev,
-            {...user, id: prev.length > 0 ? prev[prev.length - 1].id + 1 : 1}
-        ]);
+    const handleAddUser = async (user: Omit<User, "id">) => {
+        const nuevoUsuario = await userService.addUsuario(user);
+        setUsuarios((prev) => [...prev, nuevoUsuario])
         setOpenAdd(false);
     };
 
-    const handleEditUser = (user: Omit<User, "id">) => {
+    const handleEditUser = async (user: Omit<User, "id">) => {
         if (userToEdit) {
+            const actualizado = await userService.updateUsuario(userToEdit.id, user);
             setUsuarios((prev) => 
-            prev.map((u) => (u.id === userToEdit.id ? {...u, ...user} : u))
+            prev.map((u) => (u.id === userToEdit.id ? actualizado : u))
         );
         setUserToEdit(null);
         setOpenEdit(false);
         }
     };
 
-    const handleDeleteUser = (id: number) => {
+    const handleDeleteUser = async (id: number) => {
+        await userService.deleteUsuario(id);
         setUsuarios ((prev) => prev.filter((u) => u.id !== id));
     };
 
