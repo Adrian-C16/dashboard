@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DashboardLayout from "./layouts/DashboardLayout";
 import Home from "./pages/Home";
 import Usuarios from "./pages/Usuarios";
+import Tareas from "./pages/Tareas";
 
 
 const App: React.FC = () => (
@@ -11,6 +12,7 @@ const App: React.FC = () => (
       <Route path="/" element= {<DashboardLayout />}>
         <Route index element= {<Home />} />
         <Route path="usuarios" element={<Usuarios />} />
+        <Route path="tareas" element={<Tareas />} />
       </Route>
     </Routes>
   </BrowserRouter>

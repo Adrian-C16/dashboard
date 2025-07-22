@@ -4,6 +4,7 @@ import { Drawer, List, ListItemButton, ListItemIcon, ListItemText, Box, Toolbar,
 import HomeIcon from '@mui/icons-material/Home';
 import PeopleIcon from '@mui/icons-material/People';
 import AccountCircle from "@mui/icons-material/AccountCircle";
+import ChecklistOutlinedIcon from '@mui/icons-material/ChecklistOutlined';
 
 
 const drawerWidth = 220;
@@ -11,6 +12,7 @@ const drawerWidth = 220;
 const menuItems = [
     { text: 'Inicio', icon: <HomeIcon />, path: '/'},
     { text: 'Usuarios', icon: <PeopleIcon />, path: '/usuarios'},
+    { text: 'Tareas', icon: <ChecklistOutlinedIcon />, path: 'tareas'},
 ];
 
 const DashboardLayout: React.FC = () => {
