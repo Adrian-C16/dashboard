@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Typography, Button, Box, TextField, CircularProgress } from "@mui/material";
+import {  Button, Box, TextField, CircularProgress } from "@mui/material";
 import UserTable from "../components/UserTable";
 import type { User } from "../components/UserTable";
 import UserForm from "../components/UserForm";
 import * as userService from "../services/userService";
+import TareasDrawer from "../components/TareasDrawer";
 
 const Usuarios: React.FC = () => {
     const [usuarios, setUsuarios] = useState<User[]>([]);
@@ -12,11 +13,23 @@ const Usuarios: React.FC = () => {
     const [userToEdit, setUserToEdit] = useState<User | null>(null);
     const [busqueda, setBusqueda] = React.useState("");
     const [loading, setLoading] = React.useState(true);
+    const [drawerTareasOpen, setDrawerTareasOpen] = useState(false);
+    const [usuarioTareas, setUsuarioTareas] = useState<User | null >(null);
  
     useEffect (() => {
         setLoading(true);
         userService.getUsuarios().then(setUsuarios).finally(() => setLoading(false));
     }, []);
+
+    const handleOpenTareas = (user: User) => {
+        setUsuarioTareas(user);
+        setDrawerTareasOpen(true);
+    };
+
+    const handleCloseTareas = () => {
+        setDrawerTareasOpen(false);
+        setUsuarioTareas(null);
+    }
 
     const handleAddUser = async (user: Omit<User, "id">) => {
         const nuevoUsuario = await userService.addUsuario(user);
@@ -78,7 +91,12 @@ const Usuarios: React.FC = () => {
                     Agregar Usuario
                 </Button>
             </Box>
-            <UserTable usuarios= {usuariosFiltrados} onEdit={openEditForm} onDelete={handleDeleteUser} />
+            <UserTable 
+                usuarios= {usuariosFiltrados} 
+                onEdit={openEditForm} 
+                onDelete={handleDeleteUser}
+                onOpenTareas={handleOpenTareas} 
+            />
             <UserForm
                 open={openAdd}
                 onClose={() => setOpenAdd(false)}
@@ -95,6 +113,11 @@ const Usuarios: React.FC = () => {
                     : undefined
                 }
                 title="Editar Usuario"
+            />
+            <TareasDrawer
+                usuario={usuarioTareas}
+                open={drawerTareasOpen}
+                onClose={handleCloseTareas}
             />
         </div>
     )

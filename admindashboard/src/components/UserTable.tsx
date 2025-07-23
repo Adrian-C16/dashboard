@@ -6,6 +6,7 @@ import {
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import AssignmentTurnedInIcon from "@mui/icons-material/AssignmentTurnedIn";
 
 //Definimos el tipo de usuario
 
@@ -20,9 +21,10 @@ type UserTableProps = {
     usuarios: User[];
     onEdit: (user: User) => void;
     onDelete: (id: number) => void;
+    onOpenTareas: (user: User) => void;
 };
 
-const UserTable: React.FC<UserTableProps> = ({usuarios, onEdit, onDelete}) => (
+const UserTable: React.FC<UserTableProps> = ({usuarios, onEdit, onDelete, onOpenTareas}) => (
     <TableContainer component={Paper}>
         <Typography variant="h6" sx={{m: 2}}>
             Lista de Usuarios
@@ -50,6 +52,9 @@ const UserTable: React.FC<UserTableProps> = ({usuarios, onEdit, onDelete}) => (
                             </IconButton>
                             <IconButton onClick={() => onDelete(user.id)} size="small" color="error">
                                 <DeleteIcon />
+                            </IconButton>
+                            <IconButton onClick={() => onOpenTareas(user)}>
+                                <AssignmentTurnedInIcon />
                             </IconButton>
                         </TableCell>
                     </TableRow>
