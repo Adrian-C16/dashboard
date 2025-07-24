@@ -1,11 +1,14 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Drawer, List, ListItemButton, ListItemIcon, ListItemText, Box, Toolbar, AppBar, Typography, IconButton, Menu, TextField, Button } from '@mui/material';
+import { Drawer, List, ListItemButton, ListItemIcon, ListItemText, Box, Toolbar, AppBar, Typography, IconButton, Menu, MenuItem, TextField, Button } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 import PeopleIcon from '@mui/icons-material/People';
 import AccountCircle from "@mui/icons-material/AccountCircle";
 import ChecklistOutlinedIcon from '@mui/icons-material/ChecklistOutlined';
-
+import Logout from '@mui/icons-material/Logout';
+import { login, logout, isAuthenticated, getCurrentAdmin } from '../services/authService';
+import { useNavigate } from 'react-router-dom';
+import WelcomePage from '../pages/WelcomePage';
 
 const drawerWidth = 220;
 
@@ -17,11 +20,34 @@ const menuItems = [
 
 const DashboardLayout: React.FC = () => {
     const location = useLocation();
+    const navigate = useNavigate();
+
+    const [isLoggedIn, setIsLoggedIn] = React.useState(isAuthenticated());
+    const [error, setError] = React.useState('');
 
     //estado menu login
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
     const [username, setUsername] = React.useState('');
     const [password, setPassword] = React.useState('');
+
+    const handleLogin = async () => {
+        try {
+            await login(username, password);
+            setIsLoggedIn(true);
+            setUsername('');
+            setPassword('');
+            setError('');
+            handleClose();
+        } catch(err) {
+            setError(err instanceof Error ? err.message : 'Error de autenticación');
+        }
+    };
+
+    const handleLogout = async () => {
+        await logout();
+        setIsLoggedIn(false);
+        navigate('/');
+    };
 
     const handleMenu = (event: React.MouseEvent<HTMLElement>) => {
         setAnchorEl(event.currentTarget);
@@ -31,10 +57,81 @@ const DashboardLayout: React.FC = () => {
         setAnchorEl(null);
     }
 
-    const handleLogin = () => {
-        //lógica de autenticación
-        handleClose();
-    };
+    if(!isLoggedIn) {
+        return (
+            <Box>
+                <AppBar position='static'>
+                    <Toolbar>
+                        <Typography variant='h6' component='div' sx={{ flexGrow: 1}}>
+                            AdTechnologies
+                        </Typography>
+                        <Button
+                            color='inherit'
+                            onClick={handleMenu}
+                            startIcon={<AccountCircle />}
+                            id='login-button'
+                        >
+                            Iniciar Sesión
+                        </Button> 
+                    </Toolbar>
+                </AppBar>
+
+                <Menu
+                    anchorEl={anchorEl}
+                    open={Boolean(anchorEl)}
+                    onClose={handleClose}
+                    anchorOrigin={{
+                        vertical: 'top',
+                        horizontal: 'right',
+                    }}
+                    transformOrigin={{
+                        vertical: 'top',
+                        horizontal: 'right',
+                    }}
+                    sx={{
+                        display: anchorEl ? 'block' : 'none'
+                    }}
+                >
+                    <Box sx={{ p: 2, width: 300 }}>
+                        <Typography variant='h6' gutterBottom>Iniciar Sesión</Typography>
+                        {error && (
+                            <Typography color='error' variant='body2' sx={{ mb: 2}}>
+                                {error}
+                            </Typography>
+                        )}
+                        <TextField
+                            label='Email'
+                            type='email'
+                            fullWidth
+                            margin='normal'
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            autoComplete='email'
+                        />
+                        <TextField
+                            label='Contraseña'
+                            type='password'
+                            fullWidth
+                            margin='normal'
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            autoComplete='current-password'
+                        />
+                        <Button
+                            variant='contained'
+                            fullWidth
+                            onClick={handleLogin}
+                            sx={{ mt: 2}}
+                        >
+                            Ingresar
+                        </Button>
+                    </Box>
+                </Menu>
+
+                <WelcomePage />
+            </Box>
+        );
+    }
 
     return (
         <Box sx={{ display: 'flex' }}>
@@ -44,56 +141,38 @@ const DashboardLayout: React.FC = () => {
                         Dashboard Administrativo
                     </Typography>
                     <Box sx={{ flexGrow: 1 }} />
-                    <IconButton
-                        size='large'
-                        edge="end"
-                        color='inherit'
-                        onClick={handleMenu}
-                    >
-                        <AccountCircle />
-                    </IconButton>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Typography variant='subtitle2' sx={{ mr: 2 }}>
+                            {getCurrentAdmin()?.email || 'Usuario'}
+                        </Typography>
+                        <IconButton
+                            size='large'
+                            edge="end"
+                            color='inherit'
+                            onClick={handleMenu}
+                        >
+                            <AccountCircle />
+                        </IconButton>
+                    </Box>
                     <Menu
                         anchorEl={anchorEl}
                         open={Boolean(anchorEl)}
                         onClose={handleClose}
                         anchorOrigin={{
-                            vertical: "bottom",
-                            horizontal: "right",
+                            vertical: 'top',
+                            horizontal: 'right',
                         }}
                         transformOrigin={{
-                            vertical: "top",
-                            horizontal: "right",
+                            vertical: 'top',
+                            horizontal: 'right',
                         }}
                     >
-                        <Box
-                            component="form"
-                            sx={{
-                                display: "flex",
-                                flexDirection: "column",
-                                p: 2,
-                                minWidth: 250,
-                                gap: 2,
-                            }}
-                            onSubmit={e => {e.preventDefault(); handleLogin(); }}
-                        >
-                            <TextField
-                                label="Usuario"
-                                value={username}
-                                onChange={e => setUsername(e.target.value)}
-                                size="small"
-                                autoFocus
-                            />
-                            <TextField
-                                label="Contraseña"
-                                type="password"
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                size="small"
-                            />
-                            <Button variant='contained' type='submit' fullWidth>
-                                Entrar
-                            </Button>
-                        </Box>
+                        <MenuItem onClick={handleLogout}>
+                            <ListItemIcon>
+                                <Logout fontSize="small" />
+                            </ListItemIcon>
+                            <ListItemText>Cerrar Sesión</ListItemText>
+                        </MenuItem>
                     </Menu>
                 </Toolbar>
             </AppBar>
