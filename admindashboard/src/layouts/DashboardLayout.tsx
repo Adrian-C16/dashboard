@@ -1,12 +1,12 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Drawer, List, ListItemButton, ListItemIcon, ListItemText, Box, Toolbar, AppBar, Typography, IconButton, Menu, MenuItem, TextField, Button } from '@mui/material';
+import { Drawer, List, ListItemButton, ListItemIcon, ListItemText, Box, Toolbar, AppBar, Typography, IconButton, Menu, MenuItem, TextField, Button, CircularProgress } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 import PeopleIcon from '@mui/icons-material/People';
 import AccountCircle from "@mui/icons-material/AccountCircle";
 import ChecklistOutlinedIcon from '@mui/icons-material/ChecklistOutlined';
 import Logout from '@mui/icons-material/Logout';
-import { login, logout, isAuthenticated, getCurrentAdmin } from '../services/authService';
+import { login, logout, getCurrentAdmin } from '../services/authService';
 import { useNavigate } from 'react-router-dom';
 import WelcomePage from '../pages/WelcomePage';
 
@@ -22,13 +22,38 @@ const DashboardLayout: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
 
-    const [isLoggedIn, setIsLoggedIn] = React.useState(isAuthenticated());
+    const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+    const [isLoading, setIsLoading] = React.useState(true);
     const [error, setError] = React.useState('');
+
+//Verificar autenticación al cargar componente
+React.useEffect(() => {
+    const checkAuth = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            if(token) {
+                setIsLoggedIn(true);
+            }
+        } catch (error) {
+            console.error('Error validando sesión:', error);
+            localStorage.removeItem('token');
+            localStorage.removeItem('admin');
+            setIsLoggedIn(false);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    checkAuth();
+ }, []);
+
 
     //estado menu login
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
     const [username, setUsername] = React.useState('');
     const [password, setPassword] = React.useState('');
+
+
 
     const handleLogin = async () => {
         try {
@@ -57,6 +82,20 @@ const DashboardLayout: React.FC = () => {
         setAnchorEl(null);
     }
 
+    if (isLoading) {
+        return (
+            <Box sx={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                height: '100vh',
+            }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+
     if(!isLoggedIn) {
         return (
             <Box>
@@ -75,7 +114,7 @@ const DashboardLayout: React.FC = () => {
                         </Button> 
                     </Toolbar>
                 </AppBar>
-
+            {anchorEl && (
                 <Menu
                     anchorEl={anchorEl}
                     open={Boolean(anchorEl)}
@@ -88,9 +127,7 @@ const DashboardLayout: React.FC = () => {
                         vertical: 'top',
                         horizontal: 'right',
                     }}
-                    sx={{
-                        display: anchorEl ? 'block' : 'none'
-                    }}
+                    
                 >
                     <Box sx={{ p: 2, width: 300 }}>
                         <Typography variant='h6' gutterBottom>Iniciar Sesión</Typography>
@@ -127,6 +164,7 @@ const DashboardLayout: React.FC = () => {
                         </Button>
                     </Box>
                 </Menu>
+            )}
 
                 <WelcomePage />
             </Box>

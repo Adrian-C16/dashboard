@@ -1,18 +1,21 @@
-import React from "react";
-import { Card, CardContent, Typography, TextField, Box, IconButton, Tooltip, Button } from "@mui/material";
+import React, { useEffect, useState } from "react";
+import {
+    Box, Card, CardContent, Typography, TextField,
+    IconButton, Tooltip, Button, CircularProgress,
+    Accordion, AccordionSummary, AccordionDetails
+} from "@mui/material";
 import { Rnd } from "react-rnd";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import {
+    getTareas, crearTarea, actualizarTarea, borrarTarea 
+} from "../services/tareaService";
+import { getCurrentAdmin } from "../services/authService";
+import type {Tarea as TareaBackend} from "../services/tareaService";
 
 
 const LOCAL_STORAGE_KEY = "dashboard_postits";
-const LOCAL_STORAGE_TODOS_KEY = "dashboard_todolist";
-
-type Todo = {
-    id: string;
-    text: string;
-    completada: boolean;
-}
 
 type PostIt = {
     id: string;
@@ -26,164 +29,246 @@ type PostIt = {
 const defaultSize = { width: 250, height: 180 };
 
 const Tareas: React.FC = () => {
-    const [postIts, setPostIts] = React.useState<PostIt[]>(() => {
+    // POST-ITS (local)
+    const [postIts, setPostIts] = useState<PostIt[]>(() => {
         const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
         return saved ? JSON.parse(saved) : [];
     });
 
-//Estado y lógica todolist
-const [todos, setTodos] = React.useState<Todo[]>(() => {
-    const saved = localStorage.getItem(LOCAL_STORAGE_TODOS_KEY);
-    return saved ? JSON.parse(saved) : [];
-});
-const [nuevoTodo, setNuevoTodo] = React.useState("");
-
-    //guardamos en localStorage cada vez que cambiamos los post its
-    React.useEffect(() => {
+    useEffect(() => {
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(postIts));
     }, [postIts]);
 
-    React.useEffect(() => {
-        localStorage.setItem(LOCAL_STORAGE_TODOS_KEY, JSON.stringify(todos));
-    }, [todos]);
+    // TAREAS (backend)
+    const [tareas, setTareas] = useState<TareaBackend[]>([]);
+    const [nuevaTarea, setNuevaTarea] = useState("");
+    const [cargando, setCargando] = useState(true);
+    const [error, setError] = useState("");
+    const usuarioActual = getCurrentAdmin();
 
-    const handleAddTodo = () => {
-        if (nuevoTodo.trim() === "") return;
-        setTodos([
-            ...todos,
-            {id: Date.now().toString(), text: nuevoTodo, completada: false}
-        ]);
-        setNuevoTodo("");
+    useEffect(() => {
+        const cargarTareas = async () => {
+            setCargando(true);
+            setError('');
+            try {
+                if (usuarioActual?.id) {
+                    const tareasUsuario = await getTareas(usuarioActual.id);
+                    setTareas(tareasUsuario);
+                }
+            } catch (error) {
+                setError('Error al cargar las tareas');
+            } finally {
+                setCargando(false);
+            }
+        };
+        cargarTareas();
+    }, [usuarioActual?.id]);
+
+    const handleAgregarTarea = async () => {
+        if (!nuevaTarea.trim() || !usuarioActual) return;
+        setError('');
+        try {
+            const tarea = await crearTarea({
+                titulo: nuevaTarea.trim(),
+                descripcion: '',
+                usuario_id: usuarioActual.id,
+                usuario_nombre: usuarioActual.name || 'Usuario',
+                
+            });
+            setTareas(prev => [...prev, tarea]);
+            setNuevaTarea('');
+        } catch (error) {
+            setError('Error al crear la tarea');
+        }
     };
 
-    const handleToggleTodo = (id: string) => {
-        setTodos(todos.map(todo => 
-            todo.id === id ? { ...todo, completada: !todo.completada } : todo
-        ));
+    const handleToggleCompletada = async (id: number) => {
+        try {
+            const tarea = tareas.find(t => t.id === id);
+            if (!tarea) return;
+            const tareaActualizada = await actualizarTarea(id, {
+                completada: !tarea.completada
+            });
+            setTareas(tareas.map(t => t.id === id ? tareaActualizada : t));
+        } catch (error) {
+            setError('Error al actualizar la tarea');
+        }
     };
 
-    const handleDeleteTodo = (id: string) => {
-        setTodos(todos.filter(todo => todo.id !== id));
+    const handleEliminarTarea = async (id: number) => {
+        try {
+            await borrarTarea(id);
+            setTareas(tareas.filter(t => t.id !== id));
+        } catch (error) {
+            setError('Error al eliminar la tarea');
+        }
     };
 
-    
+    // Acordeón expandido por defecto
+    const [expanded, setExpanded] = useState<string | false>("tareas");
+
+    const handleAccordionChange =
+        (panel: string) => (_event: React.SyntheticEvent, isExpanded: boolean) => {
+            setExpanded(isExpanded ? panel : false);
+        };
+
     return (
-        <Box sx={{ width: "100%", height: "80vh", position: "relative", bgcolor: "#fafafa", display: "flex", alignItems: "center", justifyContent: "center"}}>
-            <Card sx={{ minWidth: 350, maxWidth: 400, p: 2, boxShadow: 6, zIndex: 2}}>
-                <CardContent>
-                    <Typography variant="h5" gutterBottom align="center">
-                        Tareas
-                    </Typography>
-                    <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
-                        <TextField
-                            label="Nueva Tarea"
-                            variant="outlined"
-                            size="small"
-                            value={nuevoTodo}
-                            onChange={e => setNuevoTodo(e.target.value)}
-                            fullWidth
-                        />
-                        <Button variant="contained" color="primary" onClick={handleAddTodo}>
-                            Añadir
-                        </Button>
-                    </Box>
-                    <Box>
-                        {todos.length === 0 ? (
-                            <Typography color="text.secondary" align="center">No hay tareas pendientes</Typography>
-                        ) : (
-                            todos.map(todo => (
-                                <Box key = {todo.id} sx={{ display: "flex", alignItems: "center", mb: 1 }} >
-                                    <input
-                                        type="checkbox"
-                                        checked= {todo.completada}
-                                        onChange= {() => handleToggleTodo(todo.id)}
-                                        style={{marginRight: 8}}
-                                    />
-                                    <Typography
-                                        sx={{ flex: 1, textDecoration: todo.completada ? "line-through" : "none"}}
-                                        >
-                                            {todo.text}
-                                        </Typography>
-                                        <IconButton onClick={() => handleDeleteTodo(todo.id)} size="small" color="error">
-                                            <DeleteIcon />
-                                        </IconButton>
-                                </Box>
-                            ))
-                        )}
-                    </Box>
-                </CardContent>
-            </Card>
-            
-            {postIts.map((postIt, idx) => (
-                <Rnd
-                    key={postIt.id}
-                    default={{
-                        x: postIt.x ?? 100 + idx * 20,
-                        y: postIt.y ?? 100 + idx * 20,
-                        width: postIt.width ?? defaultSize.width,
-                        height: postIt.height ?? defaultSize.height
-                    }}
-                    bounds="parent"
-                    style={{ position: "absolute", zIndex: 1 }}
-                >
-                    <Card
-                        sx={ {
-                            bgcolor: "#fffde7",
-                            border: "1px solid #ffe082",
-                            boxShadow: 3,
-                            borderRadius: 2,
-                        }}
-                    >
+        <Box sx={{ width: "100%", minHeight: "80vh", position: "relative", bgcolor: "#fafafa", p: 3 }}>
+            {/* ACCORDION Tareas backend */}
+            <Accordion expanded={expanded === "tareas"} onChange={handleAccordionChange("tareas")}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography variant="h6">Tareas del usuario</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Card sx={{ minWidth: 350, maxWidth: 500, margin: "0 auto", boxShadow: 2 }}>
                         <CardContent>
-                            <TextField
-                                multiline
-                                fullWidth
-                                value={postIt.content}
-                                onChange={e => {
-                                    const nuevos = [...postIts];
-                                    nuevos[idx].content = e.target.value;
-                                    setPostIts(nuevos);
-                                }}
-                                variant="standard"
-                                sx={{ background: "transparent" }}
-                            />
-                            <Box sx={{display: "flex", justifyContent:"flex-end", mt: 1 }}>
-                                <Tooltip title="Eliminar nota">
-                                    <IconButton
-                                        color="error"
-                                        size="small"
-                                        onClick={() => {
-                                            setPostIts(postIts.filter((_, i) => i !== idx));
-                                        }}
-                                    >
-                                        <DeleteIcon fontSize="small"/>
-                                    </IconButton>
-                                </Tooltip>
+                            {error && (
+                                <Typography color="error" gutterBottom>
+                                    {error}
+                                </Typography>
+                            )}
+                            <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+                                <TextField
+                                    label="Nueva tarea"
+                                    variant="outlined"
+                                    size="small"
+                                    value={nuevaTarea}
+                                    onChange={e => setNuevaTarea(e.target.value)}
+                                    fullWidth
+                                    onKeyDown={e => e.key === "Enter" && handleAgregarTarea()}
+                                />
+                                <Button variant="contained" color="primary" onClick={handleAgregarTarea}>
+                                    Añadir
+                                </Button>
                             </Box>
+                            {cargando ? (
+                                <Box display="flex" justifyContent="center" p={2}>
+                                    <CircularProgress />
+                                </Box>
+                            ) : (
+                                <Box>
+                                    {tareas.length === 0 ? (
+                                        <Typography color="text.secondary" align="center">No hay tareas</Typography>
+                                    ) : (
+                                        tareas.map(tarea => (
+                                            <Box key={tarea.id} sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={tarea.completada}
+                                                    onChange={() => handleToggleCompletada(tarea.id)}
+                                                    style={{ marginRight: 8 }}
+                                                />
+                                                <Typography
+                                                    sx={{
+                                                        flex: 1,
+                                                        textDecoration: tarea.completada ? "line-through" : "none"
+                                                    }}>
+                                                    {tarea.titulo}
+                                                </Typography>
+                                                <IconButton
+                                                    onClick={() => handleEliminarTarea(tarea.id)}
+                                                    size="small"
+                                                    color="error"
+                                                >
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                            </Box>
+                                        ))
+                                    )}
+                                </Box>
+                            )}
                         </CardContent>
                     </Card>
-                </Rnd>
-            ))}
+                </AccordionDetails>
+            </Accordion>
 
-            <IconButton
-                color="primary"
-                sx={{ position: "absolute", bottom: 24, right: 24, zIndex: 3, background: "#fff", boxShadow: 2}}
-                onClick={() => {
-                    setPostIts([
-                        ...postIts,
-                        {
-                            id: Date.now().toString(),
-                            content: "",
-                            x: 200,
-                            y: 200,
-                            width: defaultSize.width,
-                            height: defaultSize.height
-                        }
-                    ]);
-                }}
-            >
-                <AddIcon />
-            </IconButton>
+            {/* ACCORDION Post-its locales */}
+            <Accordion expanded={expanded === "postits"} onChange={handleAccordionChange("postits")}>
+                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                    <Typography variant="h6">Post-its rápidos</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                    <Box sx={{ width: "100%", minHeight: 300, position: "relative" }}>
+                        {postIts.map((postIt, idx) => (
+                            <Rnd
+                                key={postIt.id}
+                                default={{
+                                    x: postIt.x ?? 100 + idx * 20,
+                                    y: postIt.y ?? 100 + idx * 20,
+                                    width: postIt.width ?? defaultSize.width,
+                                    height: postIt.height ?? defaultSize.height
+                                }}
+                                bounds="parent"
+                                style={{ position: "absolute", zIndex: 1 }}
+                            >
+                                <Card
+                                    sx={{
+                                        bgcolor: "#fffde7",
+                                        border: "1px solid #ffe082",
+                                        boxShadow: 3,
+                                        borderRadius: 2,
+                                    }}
+                                >
+                                    <CardContent>
+                                        <TextField
+                                            multiline
+                                            fullWidth
+                                            value={postIt.content}
+                                            onChange={e => {
+                                                const nuevos = [...postIts];
+                                                nuevos[idx].content = e.target.value;
+                                                setPostIts(nuevos);
+                                            }}
+                                            variant="standard"
+                                            sx={{ background: "transparent" }}
+                                        />
+                                        <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
+                                            <Tooltip title="Eliminar nota">
+                                                <IconButton
+                                                    color="error"
+                                                    size="small"
+                                                    onClick={() => {
+                                                        setPostIts(postIts.filter((_, i) => i !== idx));
+                                                    }}
+                                                >
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </Box>
+                                    </CardContent>
+                                </Card>
+                            </Rnd>
+                        ))}
+
+                        <IconButton
+                            color="primary"
+                            sx={{
+                                position: "absolute",
+                                bottom: 16,
+                                right: 16,
+                                zIndex: 3,
+                                background: "#fff",
+                                boxShadow: 2
+                            }}
+                            onClick={() => {
+                                setPostIts([
+                                    ...postIts,
+                                    {
+                                        id: Date.now().toString(),
+                                        content: "",
+                                        x: 200,
+                                        y: 200,
+                                        width: defaultSize.width,
+                                        height: defaultSize.height
+                                    }
+                                ]);
+                            }}
+                        >
+                            <AddIcon />
+                        </IconButton>
+                    </Box>
+                </AccordionDetails>
+            </Accordion>
         </Box>
     );
 };
